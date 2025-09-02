@@ -17,4 +17,5 @@ Although it does the job, it was my first driver and one of the ways to learn I2
 
 Here's the video showing how the display work. I used ADC in 6-bit mode (0:63) and added a negative offset (-32)  to ADC's value in order to demonstrate negative numbers
 
-<video controls src="TM1650_results_1-1.mp4" title="Demo"></video>
+
+https://github.com/user-attachments/assets/7be48017-775a-4a0e-8b86-e3b8694ca1c5
