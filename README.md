@@ -17,10 +17,12 @@ It uses I2C protocol and needs a pull-up resistors.
 
 Here's the video showing how the display work.
 One decimal place float demo:
-![1 point precision float](/Images%20and%20videos/range3_demo_1.mp4)
+
+https://github.com/user-attachments/assets/34a2b795-784f-4ddf-b88a-0235775e0cfe
 
 Brightness demo (it was done to check if brightness can be changed smoothly - it was based on basic HAL_Delay() so the displayed number changes gradually and slowly).
-![2 point precision float and brigtness](/Images%20and%20videos/range3_demo_1.mp4)
+
+https://github.com/user-attachments/assets/09879d9c-7bda-4ede-be97-98b434fcadd4
 
 I'll also attach the photo of wiring to STM32 Nucleo Board - a schematic will be added in the next release.
 ![Wiring](/Images%20and%20videos/wiring.jpeg)
