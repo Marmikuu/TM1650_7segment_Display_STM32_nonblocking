@@ -1,0 +1,14 @@
+../Core/Src/TM1650.c:42:6:TM1650_SetBrightness	8
+../Core/Src/TM1650.c:82:6:TM1650_SetRange	5
+../Core/Src/TM1650.c:111:19:TM1650_Init	1
+../Core/Src/TM1650.c:126:9:pow100	2
+../Core/Src/TM1650.c:143:6:out_of_range_show	2
+../Core/Src/TM1650.c:152:9:is_number_out_of_range	6
+../Core/Src/TM1650.c:185:9:convert_to_digit_09	10
+../Core/Src/TM1650.c:230:9:convert_09_number_to_I2C	8
+../Core/Src/TM1650.c:285:6:TM1650_show_next_digit	3
+../Core/Src/TM1650.c:302:6:TM1650_current_digit_update	2
+../Core/Src/TM1650.c:311:6:TM1650_update_buffer	2
+../Core/Src/TM1650.c:322:6:TM1650_prepare_number	10
+../Core/Src/TM1650.c:368:6:TM1650_set_i2c_flag	2
+../Core/Src/TM1650.c:379:9:TM1650_check_i2c_flag	2

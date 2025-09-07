@@ -21,9 +21,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+
+#include "TM1650.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,12 +55,12 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-//////////////////////////////// ZMIENNE  - WYSWIETLACZ
-static uint8_t wyslano_wysw_I2C; //// flaga I2C
 
-static uint8_t bufor[4];
-static uint8_t ktora_cyferka; /// jaka cyfra ma byc wyświetlona
+TM1650_HandleTypeDef htm1;
 
+
+
+//////////// ADC//////
 
 volatile static uint32_t ADC_value;
 
@@ -88,102 +90,16 @@ int __io_putchar(int ch)
 }
 
 
+///////////////////////////////////////////////// ISR ///////////
 
-//////////////// KOD OD WYSWIETLACZA /////////////////////////////////////////////////////////////////
-
-static uint8_t tablica_znakow_09[10] =				////////////// adresy cyfr od 0 do 9
-{0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
-
-static uint16_t tablica_poz[4] =				///// adresy pozycji cyfr wyswietlacz
-{0x68, 0x6A, 0x6C, 0x6E};
-
-///// pomocnicza funkcja do liczenia potęg liczby 10//////////////
-uint16_t pow100(uint8_t exp) {
-    uint16_t result = 1;
-    while (exp--) result *= 10;
-    return result;
-}
-
-///// cyfry są numerowane od tyłu, tj. cyfra jednosci ma nr 1, cyfra tysiecy ma nr 4 ///////////////////////////
-uint8_t ekstrakcja_cyfry09 (int16_t liczba, uint8_t nr_cyfry) /// wersja dla 4 cyfrowej liczby, maks 9999
-{
-	liczba = abs(liczba);
-	if (((liczba >=0) && (liczba < 1000) && ((nr_cyfry >=1) && (nr_cyfry <= 4))))
-	{
-	uint8_t cyfra;
-	cyfra = ( (liczba/ pow100(nr_cyfry-1) ) % 10);
-	return cyfra;
-	}
-	else
-	{ return 0;	}
-}
-/////////////////////////////////////// konwersja liczby 0-9 na kod I2C dla wyświetlacza
-uint8_t konw09_na_I2C (uint8_t cyfra)
-{
-	if (cyfra >= 0 && cyfra <10)
-	{		return tablica_znakow_09[cyfra];}
-	else
-	{		return tablica_znakow_09[0];}
-}
-
-//////////////////////////////////////////////// funkcja wyświetlająca (również liczby ujemne)
-void buforuj_cyfry(int liczba)
-{
-	for(int i = 0; i<=3; i++)
-	{
-		uint8_t buforek = ekstrakcja_cyfry09(liczba,i+1);
-		bufor[i] = konw09_na_I2C(buforek);
-	}
-
-	if (liczba>=0)
-	{	bufor[3] = 0x00;} // zgaszone wszystkie segmenty
-	else
-	{	bufor[3] = 0x40;} /// zapalony tylko segment "G" - ("minus")
-}
-
-////////////////////////////////////////////////////
-void ustaw_odswiezanie(uint16_t freq) //// zmienia odswiezanie pojedynczej cyfry wyswietlacza /// f - wartosc w Hz
-{
-	//// preskaler powinien byc ustawiony na 7999 (8000), przy zegarze 80MHz
-
-	__HAL_TIM_SET_COMPARE(&htim15, TIM_CHANNEL_1, (10000/freq - 1 ));
-}
-void inicjalizacja_wyswietlacz(void)
-{
-	////// wyslanie poczatkowych ustawien - jasnosc
-	ustaw_odswiezanie(1000-1);
-	uint8_t komenda = 0x01;
-	HAL_I2C_Master_Transmit(&hi2c1, 0x48 , &komenda , 1, 10);
-	wyslano_wysw_I2C = 1;
-}
-void wyswietl_kolejna_cyferke(void)
-{
-	wyslano_wysw_I2C = 1;
-	if(ktora_cyferka >= 0 && ktora_cyferka < 4)
-	{
-		uint8_t cyferka = bufor[ktora_cyferka];
-		if (wyslano_wysw_I2C == 1)
-		{
-			HAL_I2C_Master_Transmit_IT(&hi2c1, tablica_poz[3-ktora_cyferka],&cyferka , 1);
-			wyslano_wysw_I2C = 0;
-		}
-	}
-}
-
-///////////////////////////////////////////////// ISR po zakończeniu transmisji I2C
 void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
-	if (hi2c == &hi2c1)
+	if (hi2c == &hi2c1)   //// ISR after I2C Tx has been completed
 	{
-		ktora_cyferka++;
-		if (ktora_cyferka >3)
-		{
-			ktora_cyferka = 0;}
-		wyslano_wysw_I2C = 1; /// ustawienie flagi po wyslaniu na 1
+		TM1650_current_digit_update();
+
 	}
 }
-
-
 
 //////////////// KONIEC WYSWIETLACA I2C
 
@@ -193,8 +109,7 @@ void HAL_TIM_PeriodElapsedCallback( TIM_HandleTypeDef *htim)
 {
 	if (htim == &htim15)
 	{
-		wyswietl_kolejna_cyferke();
-		 HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
+	 TM1650_show_next_digit(&htm1);
 	}
 }
 
@@ -236,6 +151,9 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
+
+  /////////////////// Initialize timer
+
 HAL_TIM_Base_Start_IT(&htim15);
 HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1);
 
@@ -247,8 +165,21 @@ HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
 HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_value, 1);
 
 
-////////////// WYSWIETLACZ
-inicjalizacja_wyswietlacz();
+
+
+////////////// Initialize TM1650
+
+
+
+////// DEMO - INIT
+
+//range values :  0 , 1 ,2 ,3
+/// RANGE_0, - positive integers in the range(0-9999)
+/// RANGE_1 - integers in the range(-999,999)
+/// RANGE_2, - positive and negative float numbers  (-99.9 : 999.9)
+/// RANGE_3, - positive and negative float numbers  (-9.99:9.99)
+
+TM1650_Init(&htm1, &hi2c1, 3, 3, ZEROS);
 
   /* USER CODE END 2 */
 
@@ -258,9 +189,10 @@ inicjalizacja_wyswietlacz();
   while (1)
 
   {
-
-	  int offset = 32;
-	  buforuj_cyfry(ADC_value-offset);
+	  uint16_t offset_value = 1222;
+	 float ADC_value_float;
+	 ADC_value_float = ((float)(ADC_value-offset_value))*(0.0005f);
+	  TM1650_prepare_number(&htm1, ADC_value_float);
 
     /* USER CODE END WHILE */
 
@@ -340,8 +272,8 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc1.Init.Resolution = ADC_RESOLUTION_6B;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV32;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
@@ -352,7 +284,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = ENABLE;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.OversamplingMode = ENABLE;
   hadc1.Init.Oversampling.Ratio = ADC_OVERSAMPLING_RATIO_256;
   hadc1.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_8;
