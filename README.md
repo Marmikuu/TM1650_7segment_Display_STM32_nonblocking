@@ -1,4 +1,4 @@
-## Non-blocking I2C driver for TM1650 based 7-segment LED display driver on STM32 Nucleo
+## Non-blocking I2C driver for TM1650 based 4 x 7-segment LED display on STM32 Nucleo
 
 Hi! There's a demo driver for TM1650-based to a STM32 Nucleo
 
